@@ -1,0 +1,73 @@
+====================================================
+  AI INFLUENCER STUDIO — LOCAL SETUP GUIDE
+====================================================
+
+
+WHAT YOU NEED (one-time)
+--------------------------------------------------
+Just Antigravity IDE — it includes everything.
+   → Download at: https://antigravity.dev
+   → Install it like any normal app
+
+Node.js comes bundled with Antigravity.
+No separate installs needed.
+
+
+HOW TO GET THE PROJECT
+--------------------------------------------------
+1. Go to: https://github.com/DaanKieft/ai-influencer
+2. Click the green "Code" button → "Download ZIP"
+3. Unzip it somewhere easy (Desktop or Documents)
+
+
+HOW TO RUN IT
+--------------------------------------------------
+1. Open Antigravity IDE
+2. File → Open Folder → select the unzipped project folder
+3. Open the terminal: Menu → Terminal → New Terminal
+4. Type this and press Enter:
+
+      npm install
+
+   Wait for it to finish (1–2 minutes the first time only)
+
+5. Then type this and press Enter:
+
+      npm run dev
+
+6. Open your browser and go to:
+
+      http://localhost:5173
+
+Done. The app loads with everything pre-loaded.
+
+
+CONNECTING HIGGSFIELD (to generate images & videos)
+--------------------------------------------------
+1. In the app, click the gear icon (top right) → Settings
+2. Click "Connect Higgsfield"
+3. Log in with your Higgsfield account
+4. Done — uses your own Higgsfield credits
+
+
+DAILY USE
+--------------------------------------------------
+Starting the app:
+   Open Antigravity → open the terminal → type  npm run dev
+   → go to http://localhost:5173
+
+Stopping the app:
+   Click the terminal and press Ctrl+C
+
+Keep Antigravity open while using the app —
+the terminal running inside it is what powers the server.
+
+
+NOTES
+--------------------------------------------------
+- Node.js is bundled inside Antigravity — no separate install needed.
+- npm install only needs to run once (or after updates).
+- All your data is saved in your browser locally.
+  Clearing browser data will reset everything.
+- The app works offline once loaded.
+  Image/video generation needs internet for Higgsfield.
