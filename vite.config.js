@@ -65,6 +65,51 @@ const imgProxyPlugin = {
   },
 }
 
+// Local dev Kie.ai proxy — mirrors api/kie.js for Vercel production
+const kieApiPlugin = {
+  name: 'kie-proxy',
+  configureServer(server) {
+    server.middlewares.use('/api/kie', async (req, res) => {
+      res.setHeader('Content-Type', 'application/json')
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return }
+      if (req.method !== 'POST') { res.writeHead(405); res.end(JSON.stringify({ error: 'Method not allowed' })); return }
+
+      const chunks = []
+      req.on('data', c => chunks.push(c))
+      await new Promise(r => req.on('end', r))
+      const body = JSON.parse(Buffer.concat(chunks).toString() || '{}')
+      const apiKey = req.headers['x-kie-key']
+      if (!apiKey) { res.writeHead(400); res.end(JSON.stringify({ error: 'Missing x-kie-key' })); return }
+
+      const KIE_BASE = 'https://api.kie.ai'
+      const FLUX_MODELS = new Set(['flux-kontext-pro', 'flux-kontext-max'])
+      const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+
+      try {
+        let upstream
+        if (body.operation === 'createTask') {
+          const path = FLUX_MODELS.has(body.model)
+            ? '/api/v1/flux/kontext/generate'
+            : '/api/v1/jobs/createTask'
+          const reqBody = FLUX_MODELS.has(body.model)
+            ? { model: body.model, ...body.input }
+            : { model: body.model, input: body.input }
+          upstream = await fetch(`${KIE_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(reqBody) })
+        } else if (body.operation === 'recordInfo') {
+          upstream = await fetch(`${KIE_BASE}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(body.taskId)}`, { headers })
+        } else {
+          res.writeHead(400); res.end(JSON.stringify({ error: `Unknown operation: ${body.operation}` })); return
+        }
+        const data = await upstream.json()
+        res.writeHead(upstream.status); res.end(JSON.stringify(data))
+      } catch (e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+    })
+  },
+}
+
 // Local dev KV proxy — mirrors api/kv.js for Vercel production
 // Uses KV_REST_API_URL + KV_REST_API_TOKEN from .env if set; otherwise returns null/ok stubs so
 // the app still works in dev without a real KV store configured.
@@ -166,7 +211,7 @@ const claudePlugin = {
 }
 
 export default defineConfig({
-  plugins: [react(), searchPlugin, imgProxyPlugin, claudePlugin, kvPlugin],
+  plugins: [react(), searchPlugin, imgProxyPlugin, claudePlugin, kvPlugin, kieApiPlugin],
   server: {
     proxy: {
       '/api/hf': {

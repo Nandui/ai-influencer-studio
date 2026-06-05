@@ -6,6 +6,7 @@ import { buildThreeVariationPrompts } from '../utils/systemPrompt'
 import { analyzeBackstory } from '../utils/backstoryAnalysis'
 import { generateThreeImages } from '../utils/higgsfieldGenerate'
 import { isHFConnected, startHiggsfieldOAuthPopup } from '../utils/higgsfieldAuth'
+import { isKieConnected, KIE_IMAGE_MODELS as KIE_MODELS_LIST } from '../utils/kieGenerate'
 import { compressImage } from '../utils/imageUtils'
 import { gColor } from '../utils/influencerUtils'
 
@@ -1225,6 +1226,11 @@ function ProviderIcon({ provider, version }) {
       </svg>
     </div>
   )
+  if (provider === 'kie') return (
+    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
+      K
+    </div>
+  )
   return <img src="/hf-icon.png" alt="" style={{ width: 36, height: 36, borderRadius: 10, display: 'block', flexShrink: 0 }} />
 }
 
@@ -1240,9 +1246,13 @@ function Step5({ data, onFinish, onReset, hfConnected, onConnected }) {
   const [generatedPrompts, setGeneratedPrompts] = useState([])
   const [aspectRatio, setAspectRatio] = useState('9:16')
   const backstoryCtxRef = useRef(null)
+  const [kieConnected] = useState(isKieConnected)
+  const visibleModels = [...MODELS, ...(kieConnected ? KIE_MODELS_LIST : [])]
   const [model, setModel] = useState(() => {
     const saved = localStorage.getItem(MODEL_PREF_KEY)
-    return MODELS.find(m => m.id === saved) ? saved : 'gpt_image_2'
+    if (!saved) return 'gpt_image_2'
+    if (saved.startsWith('kie:') && !isKieConnected()) return 'gpt_image_2'
+    return visibleModels.find(m => m.id === saved) ? saved : 'gpt_image_2'
   })
   const userModelRef = useRef(model)
 
@@ -1346,7 +1356,7 @@ function Step5({ data, onFinish, onReset, hfConnected, onConnected }) {
           {/* Model picker — main focus */}
           <div style={{ fontSize: 11, fontWeight: 700, color: L.textFaint, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 10 }}>Generation Engine</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
-            {MODELS.map(m => {
+            {visibleModels.map(m => {
               const on = model === m.id
               const blocked = m.id === 'soul_2' && hasRef
               return (

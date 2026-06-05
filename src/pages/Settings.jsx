@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { startHiggsfieldOAuthPopup, disconnectHF, isHFConnected } from '../utils/higgsfieldAuth'
 import { useTheme } from '../context/theme'
 import { getCloudUserId, setCloudUserId } from '../utils/cloudStorage'
+import { getKieKey, saveKieKey, clearKieKey, isKieConnected, KIE_VIDEO_MODELS } from '../utils/kieGenerate'
 
 function Section({ title, children }) {
   return (
@@ -28,6 +29,10 @@ export default function Settings() {
   const [cloudUserId] = useState(() => getCloudUserId())
   const [syncIdInput, setSyncIdInput] = useState('')
   const [syncIdStatus, setSyncIdStatus] = useState(null) // 'copied' | 'applied' | 'error'
+  const [kieConnected, setKieConnected] = useState(isKieConnected)
+  const [kieInput, setKieInput] = useState('')
+  const [showKieInput, setShowKieInput] = useState(false)
+  const [videoModelPref, setVideoModelPref] = useState(() => localStorage.getItem('video_model_pref') || 'seedance_2_0')
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     if (params.get('connected') === '1') {
@@ -146,6 +151,100 @@ export default function Settings() {
               </div>
             </div>
           )}
+        </Section>
+
+        <Section title="Kie.ai">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+            Add your <a href="https://kie.ai/api-key" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)' }}>Kie.ai API key</a> to unlock additional models — Flux Kontext, Imagen 4, Veo 3, Kling 3.0, and more.
+          </p>
+          {kieConnected ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34C759' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#34C759' }}>Kie.ai connected</span>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>···{getKieKey().slice(-4)}</span>
+              </div>
+              <button
+                onClick={() => { clearKieKey(); setKieConnected(false); setShowKieInput(false); setKieInput('') }}
+                style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: '#FF3B30', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : showKieInput ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                autoFocus
+                type="password"
+                value={kieInput}
+                onChange={e => setKieInput(e.target.value)}
+                placeholder="Paste Kie.ai API key…"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && kieInput.trim()) {
+                    saveKieKey(kieInput.trim()); setKieConnected(true); setKieInput(''); setShowKieInput(false)
+                  }
+                }}
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', fontSize: 14, color: 'var(--text-primary)', fontFamily: 'monospace' }}
+              />
+              <button
+                onClick={() => { if (!kieInput.trim()) return; saveKieKey(kieInput.trim()); setKieConnected(true); setKieInput(''); setShowKieInput(false) }}
+                style={{ padding: '10px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, background: '#1D1D1F', color: '#fff', border: 'none', cursor: 'pointer' }}
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowKieInput(true)}
+              style={{ padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, background: '#1D1D1F', color: '#fff', border: 'none', cursor: 'pointer' }}
+            >
+              Add API Key
+            </button>
+          )}
+        </Section>
+
+        <Section title="Video Model">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+            Choose the default model used when generating videos. Kie.ai models require your Kie.ai API key.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { id: 'seedance_2_0', name: 'Seedance 2.0', tag: 'Higgsfield', tagColor: '#EC4899', desc: 'Default — Higgsfield native, fast & reliable.' },
+              ...KIE_VIDEO_MODELS,
+            ].map(m => {
+              const on = videoModelPref === m.id
+              const needsKie = m.id.startsWith('kie:')
+              const disabled = needsKie && !kieConnected
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    if (disabled) return
+                    setVideoModelPref(m.id)
+                    localStorage.setItem('video_model_pref', m.id)
+                  }}
+                  style={{
+                    padding: '12px 16px', borderRadius: 10, textAlign: 'left', cursor: disabled ? 'not-allowed' : 'pointer',
+                    border: `1.5px solid ${on ? '#8B5CF6' : 'var(--border)'}`,
+                    background: on ? 'rgba(139,92,246,0.08)' : 'var(--bg)',
+                    opacity: disabled ? 0.4 : 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    transition: 'all 0.15s', fontFamily: 'inherit',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: on ? '#8B5CF6' : 'var(--text-primary)', marginBottom: 2 }}>{m.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.desc}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    {disabled && <span style={{ fontSize: 10, color: '#FF3B30', fontWeight: 600 }}>Add Kie.ai key</span>}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: m.tagColor || '#8B5CF6', background: `${m.tagColor || '#8B5CF6'}18`, padding: '2px 7px', borderRadius: 6 }}>{m.tag}</span>
+                    {on && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#8B5CF6', flexShrink: 0 }} />}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </Section>
 
         <Section title="Cloud Sync">

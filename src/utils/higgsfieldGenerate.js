@@ -1,4 +1,5 @@
 import { getHFToken, refreshHFToken } from './higgsfieldAuth'
+import { kieGenerateImages, kieGenerateVideo } from './kieGenerate'
 
 const MCP_URL = '/api/hf/mcp'
 const PENDING_KEY = 'hf_pending_gens'
@@ -479,6 +480,9 @@ const uploadAudioFile = dataUrl => uploadMedia(dataUrl, {
 })
 
 export async function generateVideo({ prompt, aspectRatio = '9:16', duration = 8, count = 1, referenceImages = [], audioRef = null, startFrameUrl = null, model = 'seedance_2_0', resolution = '1080p', onProgress, onPartialResults, isCancelled, pendingKey = null }) {
+  if (model?.startsWith('kie:')) {
+    return kieGenerateVideo({ prompt, aspectRatio, model, duration, referenceImages, onProgress, onPartialResults, isCancelled })
+  }
   await initSession()
   onProgress?.(5)
 
@@ -741,6 +745,9 @@ function modelBaseParams(model, aspectRatio) {
 }
 
 export async function generateThreeImages({ prompts, aspectRatio = '9:16', model = 'gpt_image_2', faceRef = null, styleRef = null, physicalDesc = '', faceRefNote = '', styleRefNote = '', onProgress, onPartialResults }) {
+  if (model?.startsWith('kie:')) {
+    return kieGenerateImages({ prompts, aspectRatio, model, faceRef, styleRef, onProgress, onPartialResults })
+  }
   await initSession()
   onProgress?.(5)
 

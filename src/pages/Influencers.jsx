@@ -3901,7 +3901,7 @@ function ContentStudio({ influencer, onUpdate, onSaveToScripts, onGenerated, res
   const [selectedHomeId, setSelectedHomeId] = useState(() => { try { return localStorage.getItem(`hf_home_id_${influencer.id}`) || '' } catch { return '' } })
   const homeSlots = (influencer.homeSlots || []).filter(s => s.image)
   const selectedHome = homeSlots.find(s => s.id === selectedHomeId) || null
-  const videoModel = 'seedance_2_0'
+  const videoModel = localStorage.getItem('video_model_pref') || 'seedance_2_0'
 
   // Reset wardrobe drawer state when the active influencer changes
   useEffect(() => {
