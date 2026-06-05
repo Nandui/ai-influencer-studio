@@ -39,7 +39,7 @@ async function ensureClientId() {
   return d.client_id
 }
 
-async function buildAuthUrl() {
+async function buildAuthUrl({ prompt } = {}) {
   const verifier = randomString(64)
   const challenge = await sha256Base64Url(verifier)
   const state = randomString(16)
@@ -55,27 +55,31 @@ async function buildAuthUrl() {
     code_challenge: challenge,
     code_challenge_method: 'S256',
   })
+  if (prompt) params.set('prompt', prompt)
   return `${AUTH_DIRECT}/oauth2/authorize?${params}`
 }
 
-export async function startHiggsfieldOAuth() {
-  window.location.href = await buildAuthUrl()
+export async function startHiggsfieldOAuth(options = {}) {
+  window.location.href = await buildAuthUrl(options)
 }
 
 // Opens ONE popup. First-time users: popup starts on higgsfield.ai (sets referral cookie),
 // then auto-navigates to OAuth in the same popup window. No extra tabs ever.
-export async function startHiggsfieldOAuthPopup() {
-  const authUrl = await buildAuthUrl()
+// Pass { prompt: 'login' } to force the login screen even when already signed in.
+export async function startHiggsfieldOAuthPopup(options = {}) {
+  const authUrl = await buildAuthUrl(options)
   const w = 520, h = 660
   const left = Math.round(window.screenX + (window.outerWidth - w) / 2)
   const top = Math.round(window.screenY + (window.outerHeight - h) / 2)
 
   const referralDone = localStorage.getItem('hf_referral_fired')
-  const startUrl = referralDone ? authUrl : 'https://higgsfield.ai/?fpr=dankieft&fp_sid=tool'
+  // Skip the referral landing page when the user is explicitly choosing a different account
+  const skipReferral = referralDone || options.prompt === 'login'
+  const startUrl = skipReferral ? authUrl : 'https://higgsfield.ai/?fpr=dankieft&fp_sid=tool'
   const popup = window.open(startUrl, 'hf_oauth', `width=${w},height=${h},left=${left},top=${top}`)
   if (!popup) throw new Error('Popup blocked — please allow popups for this site and try again')
 
-  if (!referralDone) {
+  if (!skipReferral) {
     // Give the referral page ~2.5 s to load and set its cookie, then send to OAuth
     setTimeout(() => { try { popup.location.href = authUrl } catch (_) {} }, 2500)
   }

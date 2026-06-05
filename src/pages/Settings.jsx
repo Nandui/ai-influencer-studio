@@ -35,10 +35,10 @@ export default function Settings() {
     }
   }, [location.search])
 
-  async function connectHiggsfield() {
+  async function connectHiggsfield(options = {}) {
     setHfLoading(true)
     try {
-      await startHiggsfieldOAuthPopup()
+      await startHiggsfieldOAuthPopup(options)
       setHfConnected(true)
     } catch (e) {
       if (e.message !== 'cancelled') alert('Failed to connect Higgsfield: ' + e.message)
@@ -98,31 +98,53 @@ export default function Settings() {
             Connect your Higgsfield account to generate influencer images directly in the app. Images use your own Higgsfield credits.
           </p>
           {hfConnected ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34C759' }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#34C759' }}>Higgsfield connected</span>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34C759' }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#34C759' }}>Higgsfield connected</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => connectHiggsfield({ prompt: 'login' })}
+                    disabled={hfLoading}
+                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', background: 'var(--bg)', border: '1px solid var(--border)', fontWeight: 500, cursor: 'pointer', opacity: hfLoading ? 0.6 : 1 }}
+                  >
+                    Switch account
+                  </button>
+                  <button onClick={disconnectHighgsfield} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: '#FF3B30', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)', fontWeight: 500, cursor: 'pointer' }}>
+                    Disconnect
+                  </button>
+                </div>
               </div>
-              <button onClick={disconnectHighgsfield} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: '#FF3B30', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)', fontWeight: 500 }}>
-                Disconnect
-              </button>
             </div>
           ) : (
-            <button
-              onClick={connectHiggsfield}
-              disabled={hfLoading}
-              style={{ padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, background: '#1D1D1F', color: '#fff', display: 'flex', alignItems: 'center', gap: 8, opacity: hfLoading ? 0.6 : 1 }}
-            >
-              {hfLoading ? (
-                <>
-                  <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
-                  Connecting…
-                </>
-              ) : (
-                'Connect Higgsfield'
-              )}
-              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-            </button>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => connectHiggsfield()}
+                  disabled={hfLoading}
+                  style={{ padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, background: '#1D1D1F', color: '#fff', display: 'flex', alignItems: 'center', gap: 8, opacity: hfLoading ? 0.6 : 1, cursor: hfLoading ? 'not-allowed' : 'pointer', border: 'none' }}
+                >
+                  {hfLoading ? (
+                    <>
+                      <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
+                      Connecting…
+                    </>
+                  ) : (
+                    'Connect Higgsfield'
+                  )}
+                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+                </button>
+                <button
+                  onClick={() => connectHiggsfield({ prompt: 'login' })}
+                  disabled={hfLoading}
+                  style={{ padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: hfLoading ? 'not-allowed' : 'pointer', opacity: hfLoading ? 0.6 : 1 }}
+                >
+                  Use a different account
+                </button>
+              </div>
+            </div>
           )}
         </Section>
 
