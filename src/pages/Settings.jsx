@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { startHiggsfieldOAuthPopup, disconnectHF, isHFConnected } from '../utils/higgsfieldAuth'
 import { useTheme } from '../context/theme'
+import { getCloudUserId, setCloudUserId } from '../utils/cloudStorage'
 
 function Section({ title, children }) {
   return (
@@ -24,6 +25,9 @@ export default function Settings() {
   const [claudeKey, setClaudeKey] = useState(() => localStorage.getItem(CLAUDE_KEY) || '')
   const [claudeInput, setClaudeInput] = useState('')
   const [showClaudeInput, setShowClaudeInput] = useState(false)
+  const [cloudUserId] = useState(() => getCloudUserId())
+  const [syncIdInput, setSyncIdInput] = useState('')
+  const [syncIdStatus, setSyncIdStatus] = useState(null) // 'copied' | 'applied' | 'error'
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     if (params.get('connected') === '1') {
@@ -120,6 +124,62 @@ export default function Settings() {
               <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
             </button>
           )}
+        </Section>
+
+        <Section title="Cloud Sync">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+            Your Sync ID lets you access your influencers and generated content from any browser or device. Copy it and enter it on another device to sync your data.
+          </p>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Your Sync ID</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <code style={{ flex: 1, padding: '10px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', fontFamily: 'monospace', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                {cloudUserId}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(cloudUserId).then(() => {
+                    setSyncIdStatus('copied')
+                    setTimeout(() => setSyncIdStatus(null), 2000)
+                  })
+                }}
+                style={{ padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: syncIdStatus === 'copied' ? 'rgba(52,199,89,0.12)' : 'var(--bg)', color: syncIdStatus === 'copied' ? '#34C759' : 'var(--text-primary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+              >
+                {syncIdStatus === 'copied' ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Use on another device</div>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>Paste a Sync ID from another device to load its data here. This will replace your current local data on next refresh.</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={syncIdInput}
+                onChange={e => { setSyncIdInput(e.target.value); setSyncIdStatus(null) }}
+                placeholder="Paste Sync ID…"
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${syncIdStatus === 'error' ? '#FF3B30' : 'var(--border)'}`, background: 'var(--bg)', fontSize: 13, color: 'var(--text-primary)', fontFamily: 'monospace' }}
+              />
+              <button
+                onClick={() => {
+                  try {
+                    setCloudUserId(syncIdInput)
+                    localStorage.removeItem('cloud_sync_at')
+                    setSyncIdStatus('applied')
+                    setSyncIdInput('')
+                    setTimeout(() => window.location.reload(), 800)
+                  } catch {
+                    setSyncIdStatus('error')
+                  }
+                }}
+                disabled={!syncIdInput.trim()}
+                style={{ padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: syncIdStatus === 'applied' ? 'rgba(52,199,89,0.12)' : '#1D1D1F', color: syncIdStatus === 'applied' ? '#34C759' : '#fff', border: 'none', cursor: syncIdInput.trim() ? 'pointer' : 'not-allowed', opacity: syncIdInput.trim() ? 1 : 0.4, whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+              >
+                {syncIdStatus === 'applied' ? 'Applying…' : 'Apply'}
+              </button>
+            </div>
+            {syncIdStatus === 'error' && <p style={{ fontSize: 12, color: '#FF3B30', marginTop: 6 }}>Sync ID must be at least 8 characters.</p>}
+          </div>
         </Section>
 
         <Section title="Claude AI">

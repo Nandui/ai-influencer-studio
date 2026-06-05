@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react'
+import { cloudGet, cloudMGet, cloudMSet } from './utils/cloudStorage'
 
 // Generic small-value localStorage hook (inspiration boards, brand deals, etc.)
 function useLocalStorage(key, initial) {
@@ -61,6 +62,81 @@ function readLegacyList() {
   } catch { return [] }
 }
 
+// ── Cloud sync helpers ────────────────────────────────────────────
+const CLOUD_SYNC_TS_KEY = 'cloud_sync_at'
+const IMAGE_FIELDS = ['mainImage', 'characterSheetImage', 'closeUpImage1', 'closeUpImage2']
+
+function sanitizeForCloud(inf) {
+  const strip = v => (typeof v === 'string' && v.startsWith('data:')) ? null : v
+  return {
+    ...inf,
+    mainImage:           strip(inf.mainImage),
+    characterSheetImage: strip(inf.characterSheetImage),
+    closeUpImage1:       strip(inf.closeUpImage1),
+    closeUpImage2:       strip(inf.closeUpImage2),
+    wardrobeSlots: (inf.wardrobeSlots || []).map(s => ({ ...s, image: strip(s.image) })),
+  }
+}
+
+async function syncFromCloud(setInfluencers, localInfluencers) {
+  try {
+    const cloudTs = await cloudGet('sync_timestamp')
+    if (!cloudTs) return
+    const localSyncAt = Number(localStorage.getItem(CLOUD_SYNC_TS_KEY) || '0')
+    if (cloudTs <= localSyncAt) return
+
+    const ids = await cloudGet('influencer_ids')
+    if (!ids?.length) return
+    const values = await cloudMGet(ids.map(id => `hf_influencer_${id}`))
+    const cloudInfluencers = values.filter(Boolean)
+    if (!cloudInfluencers.length) return
+
+    // Cloud stripped base64 images — restore them from local copies where available
+    const localMap = Object.fromEntries(localInfluencers.map(i => [i.id, i]))
+    const merged = cloudInfluencers.map(ci => {
+      const li = localMap[ci.id]
+      if (!li) return ci
+      const m = { ...ci }
+      for (const f of IMAGE_FIELDS) {
+        if (m[f] == null && li[f] != null) m[f] = li[f]
+      }
+      if (m.wardrobeSlots && li.wardrobeSlots) {
+        const localById = Object.fromEntries(li.wardrobeSlots.map(s => [s.id, s]))
+        m.wardrobeSlots = m.wardrobeSlots.map(s => ({ ...s, image: s.image ?? (localById[s.id]?.image ?? null) }))
+      }
+      return m
+    })
+
+    setInfluencers(merged)
+    localStorage.setItem(CLOUD_SYNC_TS_KEY, String(cloudTs))
+    console.log(`[Cloud] Pulled ${merged.length} influencers`)
+  } catch (e) {
+    if (e.message !== 'cloud_not_configured') console.warn('[Cloud] Pull failed:', e.message)
+  }
+}
+
+let _syncTimer = null
+
+async function syncToCloud(influencers) {
+  try {
+    const ts = Date.now()
+    const pairs = [
+      ['influencer_ids', influencers.map(i => i.id)],
+      ...influencers.map(inf => [`hf_influencer_${inf.id}`, sanitizeForCloud(inf)]),
+      ['sync_timestamp', ts],
+    ]
+    await cloudMSet(pairs)
+    localStorage.setItem(CLOUD_SYNC_TS_KEY, String(ts))
+  } catch (e) {
+    if (e.message !== 'cloud_not_configured') console.warn('[Cloud] Push failed:', e.message)
+  }
+}
+
+function scheduleSyncToCloud(influencers) {
+  clearTimeout(_syncTimer)
+  _syncTimer = setTimeout(() => syncToCloud(influencers), 2000)
+}
+
 function useInfluencerStore(initial) {
   const [influencers, setInfluencers] = useState(() => {
     const ids = readIds()
@@ -109,7 +185,13 @@ function useInfluencerStore(initial) {
         if (!idSet.has(id)) try { localStorage.removeItem(key) } catch {}
       }
     }
+    scheduleSyncToCloud(influencers)
   }, [influencers])
+
+  // Pull from cloud on mount if cloud has newer data
+  useEffect(() => {
+    syncFromCloud(setInfluencers, influencers) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return [influencers, setInfluencers]
 }
